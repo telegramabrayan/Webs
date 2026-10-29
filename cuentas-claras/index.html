@@ -133,7 +133,7 @@ legend { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0; mar
 .opciones { display: flex; flex-wrap: wrap; gap: 8px; }
 .opciones label { position: relative; }
 .opciones input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.opciones span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--muted); transition: all .2s; }
+.opciones span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--muted); transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
 .opciones input:checked + span { color: var(--ink); border-color: var(--ink); background: color-mix(in oklab, var(--ink) 6%, transparent); }
 .opciones input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .opciones .t-in input:checked + span { color: var(--in); border-color: var(--in); background: color-mix(in oklab, var(--in) 10%, transparent); }
@@ -147,7 +147,11 @@ legend { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0; mar
 .foto .pick:hover { border-color: var(--focus); color: var(--focus); }
 .foto .pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .foto img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; box-shadow: var(--shadow); }
-.solo-transf[hidden] { display: none; }
+.solo-transf[hidden], .solo-usd[hidden] { display: none; }
+.solo-usd { display: grid; gap: 8px; padding: 14px; border-radius: 10px; background: color-mix(in oklab, var(--in) 8%, var(--sheet)); }
+.solo-usd .grid { gap: 10px; }
+.solo-usd .calc { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+.solo-usd .calc b { color: var(--in); }
 
 /* Lista */
 .aviso { background: color-mix(in oklab, var(--focus) 9%, var(--sheet)); color: var(--ink); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-size: 14px; }
@@ -278,6 +282,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   <symbol id="i-in" viewBox="0 0 24 24"><path d="M17 7 7 17M7 9v8h8"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
   <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></symbol>
+  <symbol id="i-usd" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.4-.9-1.5-1.5-2.8-1.5-1.6 0-2.8.8-2.8 2s1.1 1.7 2.8 2.1c1.7.4 2.8 1 2.8 2.2s-1.2 2.1-2.8 2.1c-1.4 0-2.5-.6-2.9-1.6M12 6v1.7M12 16.1V18"/></symbol>
   <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></symbol>
   <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></symbol>
@@ -385,6 +390,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           <div class="opciones">
             <label><input type="radio" name="metodo" value="efectivo" id="mEfectivo" checked><span><svg class="i"><use href="#i-cash"/></svg>Efectivo</span></label>
             <label><input type="radio" name="metodo" value="transferencia" id="mTransf"><span><svg class="i"><use href="#i-bank"/></svg>Transferencia</span></label>
+            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg>Dólares</span></label>
           </div>
         </fieldset>
         <label class="f">Nota (opcional)
@@ -420,7 +426,10 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const icon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
-  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"] };
+  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"], dolares: ["usd", "Dólares"] };
+  const usdf = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
+  const leerCot = () => { try { return localStorage.getItem("cc-cotizacion") || ""; } catch { return ""; } };
+  const guardarCot = v => { try { localStorage.setItem("cc-cotizacion", String(v)); } catch {} };
 
   $("#hoy").textContent = new Intl.DateTimeFormat("es", { weekday: "long", day: "numeric", month: "long" }).format(new Date()).replace(/^./, c => c.toUpperCase());
 
@@ -614,7 +623,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     const comp = p.comprobante && store.url(p.comprobante) ? `<button class="comp" type="button" data-ver="${esc(store.url(p.comprobante))}" aria-label="Ver comprobante de la cuota ${i + 1}"><img src="${esc(store.url(p.comprobante))}" alt="" loading="lazy"></button>` : `<span></span>`;
     return `<li>
       <span class="nro num">#${i + 1}</span>
-      <span class="q"><b class="num">${money(p.monto)}</b><small>${esc(fecha(p.fecha))} · ${lab}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
+      <span class="q"><b class="num">${money(p.monto)}</b><small>${esc(fecha(p.fecha))} · ${lab}${p.metodo === "dolares" && p.usd ? ` · US$${usdf.format(p.usd)} a ${money(p.cotizacion)}` : ""}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
       ${comp}
       <button class="link peligro borrar-pago" type="button" data-borrar-pago="${i}" aria-label="Borrar cuota ${i + 1}">${icon("x")}</button>
     </li>`;
@@ -624,7 +633,8 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     if (saldada(c)) return "";
     const sig = (c.pagos || []).length + 1;
     const sug = Math.min(resta(c), cuotaValor(c));
-    const m = c.metodo === "transferencia" ? "transferencia" : "efectivo";
+    const m = METODO[c.metodo] ? c.metodo : "efectivo";
+    const cot = leerCot();
     const verbo = c.tipo === "cobrar" ? "Registrar cobro" : "Registrar pago";
     return `<form class="pago" data-pago="${esc(c.id)}" novalidate>
       <h3>${verbo} · cuota ${sig} de ${Math.max(sig, Number(c.cuotas) || 1)}</h3>
@@ -637,8 +647,16 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
         <div class="opciones">
           <label><input type="radio" name="metodo" value="efectivo" ${m === "efectivo" ? "checked" : ""}><span>${icon("cash")}Efectivo</span></label>
           <label><input type="radio" name="metodo" value="transferencia" ${m === "transferencia" ? "checked" : ""}><span>${icon("bank")}Transferencia</span></label>
+          <label><input type="radio" name="metodo" value="dolares" ${m === "dolares" ? "checked" : ""}><span>${icon("usd")}Dólares</span></label>
         </div>
       </fieldset>
+      <div class="solo-usd" ${m === "dolares" ? "" : "hidden"}>
+        <div class="grid">
+          <label class="f">Dólares entregados<input name="usd" id="pu-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 100"></label>
+          <label class="f">Cotización (1 US$ =)<input name="cot" id="pc-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 1200" value="${esc(cot)}"></label>
+        </div>
+        <p class="calc">Escribí los dólares y la cotización para calcular el monto.</p>
+      </div>
       <div class="foto solo-transf" ${m === "transferencia" ? "" : "hidden"}>
         <label class="pick">${icon("cam")}<span class="pick-t">Agregar foto del comprobante</span><input type="file" name="foto" accept="image/*"></label>
         <img class="prev" alt="Vista previa del comprobante" hidden>
@@ -772,7 +790,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
       $(c.tipo === "pagar" ? "#tPagar" : "#tCobrar").checked = true;
       $("#nNombre").value = c.nombre || ""; $("#nMonto").value = c.monto ?? "";
       $("#nCuotas").value = c.cuotas || 1; $("#nFecha").value = c.fecha || "";
-      $(c.metodo === "transferencia" ? "#mTransf" : "#mEfectivo").checked = true;
+      $(c.metodo === "transferencia" ? "#mTransf" : c.metodo === "dolares" ? "#mDolares" : "#mEfectivo").checked = true;
       $("#nNota").value = c.nota || "";
       $("#nConcepto").value = c.concepto || "";
     } else {
@@ -873,7 +891,11 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
 
   lista.addEventListener("change", e => {
     const f = e.target.closest("form.pago"); if (!f) return;
-    if (e.target.name === "metodo") $(".solo-transf", f).hidden = e.target.value !== "transferencia";
+    if (e.target.name === "metodo") {
+      $(".solo-transf", f).hidden = e.target.value !== "transferencia";
+      $(".solo-usd", f).hidden = e.target.value !== "dolares";
+      if (e.target.value === "dolares") calcularUsd(f);
+    }
     if (e.target.name === "foto") {
       const file = e.target.files[0], prev = $(".prev", f);
       if (file) { prev.src = URL.createObjectURL(file); prev.hidden = false; $(".pick-t", f).textContent = "Cambiar foto"; }
@@ -881,11 +903,33 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     }
   });
 
+  function calcularUsd(f) {
+    const usd = parseFloat(f.usd.value), cot = parseFloat(f.cot.value), calc = $(".calc", f);
+    if (usd > 0 && cot > 0) {
+      const pesos = Math.round(usd * cot * 100) / 100;
+      f.monto.value = pesos;
+      calc.innerHTML = `US$${usdf.format(usd)} × ${money(cot)} = <b>${money(pesos)}</b>`;
+    } else calc.textContent = "Escribí los dólares y la cotización para calcular el monto.";
+  }
+  lista.addEventListener("input", e => {
+    const f = e.target.closest("form.pago");
+    if (f && (e.target.name === "usd" || e.target.name === "cot")) calcularUsd(f);
+  });
+
   lista.addEventListener("submit", async e => {
     const f = e.target.closest("form.pago"); if (!f) return;
     e.preventDefault();
     const c = cuentas.find(x => x.id === f.dataset.pago); if (!c) return;
     const err = $(".error", f), btn = $("button[type=submit]", f);
+    const metodoSel = f.metodo.value;
+    let extra = {};
+    if (metodoSel === "dolares") {
+      const usd = parseFloat(f.usd.value), cot = parseFloat(f.cot.value);
+      if (!(usd > 0)) { err.textContent = "Escribí cuántos dólares se entregaron."; err.hidden = false; f.usd.focus(); return; }
+      if (!(cot > 0)) { err.textContent = "Escribí la cotización del dólar."; err.hidden = false; f.cot.focus(); return; }
+      calcularUsd(f); guardarCot(cot);
+      extra = { usd: Math.round(usd * 100) / 100, cotizacion: Math.round(cot * 100) / 100 };
+    }
     const monto = parseFloat(f.monto.value);
     if (!(monto > 0)) { err.textContent = "Escribí cuánto se pagó."; err.hidden = false; f.monto.focus(); return; }
     if (monto > resta(c) + 0.004) { err.textContent = `El monto supera lo que falta (${money(resta(c))}).`; err.hidden = false; f.monto.focus(); return; }
@@ -899,7 +943,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
         btn.lastChild.textContent = "Subiendo foto…";
         comprobante = await store.subir(await comprimir(file));
       }
-      const pagos = [...(c.pagos || []), { id: uid(), monto: Math.round(monto * 100) / 100, fecha: f.fecha.value || hoyISO(), metodo, comprobante }];
+      const pagos = [...(c.pagos || []), { id: uid(), monto: Math.round(monto * 100) / 100, fecha: f.fecha.value || hoyISO(), metodo, comprobante, ...extra }];
       recienPagada = { id: c.id, idx: pagos.length - 1 };
       abierta = c.id;
       await store.guardar({ ...c, pagos });
