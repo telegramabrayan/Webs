@@ -93,6 +93,9 @@ h1 { font: 750 clamp(2rem, 6vw, 3.1rem)/1 var(--display); letter-spacing: -.035e
 .neto .et { font-size: 13px; font-weight: 600; letter-spacing: .02em; }
 .neto .v { font: 800 clamp(2.6rem, 11vw, 4.4rem)/.95 var(--display); letter-spacing: -.04em; overflow-wrap: anywhere; }
 .neto .leyenda { font-size: 14px; color: var(--hero-muted); }
+.neto-usd { font: 700 1.25rem/1.2 var(--display); letter-spacing: -.02em; }
+.usd-tot { font: 700 1.05rem/1.2 var(--display); }
+.lado.in .usd-tot { color: var(--hero-in); } .lado.out .usd-tot { color: var(--hero-out); }
 .barra { position: relative; height: 12px; border-radius: 99px; background: rgb(255 255 255 / .1); overflow: hidden; display: flex; }
 .barra i { display: block; height: 100%; transition: flex-grow 1.1s var(--ease-out); }
 .barra .a { background: linear-gradient(90deg, color-mix(in oklab, var(--hero-in) 70%, var(--hero)), var(--hero-in)); flex: 0 1 0; border-radius: 99px; }
@@ -328,16 +331,19 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
       <div class="lado in">
         <span class="et"><svg class="i"><use href="#i-in"/></svg>Me deben</span>
         <span class="monto num" id="totIn">$0</span>
+        <span class="usd-tot num" id="usdIn" hidden></span>
         <span class="det" id="detIn">Sin cuentas por cobrar</span>
       </div>
       <div class="neto">
         <span class="et">Balance</span>
         <div class="v num" id="neto">$0</div>
         <span class="leyenda" id="netoTxt">Todavía no anotaste nada</span>
+        <span class="neto-usd num" id="netoUsd" hidden></span>
       </div>
       <div class="lado out der">
         <span class="et">Debo<svg class="i"><use href="#i-out"/></svg></span>
         <span class="monto num" id="totOut">$0</span>
+        <span class="usd-tot num" id="usdOut" hidden></span>
         <span class="det" id="detOut">Sin cuentas por pagar</span>
       </div>
     </div>
@@ -365,6 +371,13 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
             <label class="t-out"><input type="radio" name="tipo" value="pagar" id="tPagar"><span><svg class="i"><use href="#i-out"/></svg>Yo le debo</span></label>
           </div>
         </fieldset>
+        <fieldset>
+          <legend>Moneda de la deuda</legend>
+          <div class="opciones">
+            <label><input type="radio" name="moneda" value="ARS" id="monARS" checked><span>Pesos ($)</span></label>
+            <label><input type="radio" name="moneda" value="USD" id="monUSD"><span>${'${'}"Dólares (US$)"}</span></label>
+          </div>
+        </fieldset>
         <div class="grid">
           <label class="f">Nombre
             <input id="nNombre" name="nombre" autocomplete="off" placeholder="Ej. Mamá" maxlength="60" list="personas" required>
@@ -374,7 +387,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           <label class="f">¿De qué es?
             <input id="nConcepto" name="concepto" autocomplete="off" placeholder="Ej. Comida, luz, alquiler" maxlength="60">
           </label>
-          <label class="f">Monto total
+          <label class="f"><span id="nMontoLab">Monto total en pesos</span>
             <input id="nMonto" name="monto" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" required>
           </label>
           <label class="f">Cantidad de cuotas
@@ -390,7 +403,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           <div class="opciones">
             <label><input type="radio" name="metodo" value="efectivo" id="mEfectivo" checked><span><svg class="i"><use href="#i-cash"/></svg>Efectivo</span></label>
             <label><input type="radio" name="metodo" value="transferencia" id="mTransf"><span><svg class="i"><use href="#i-bank"/></svg>Transferencia</span></label>
-            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg>Dólares</span></label>
+            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg><span id="mOtroLab">Dólares</span></span></label>
           </div>
         </fieldset>
         <label class="f">Nota (opcional)
@@ -419,14 +432,16 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const nf = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
-  const money = n => "$" + nf.format(Math.round((Number(n) || 0) * 100) / 100);
+  const money = (n, cur) => (cur === "USD" ? "US$" : "$") + nf.format(Math.round((Number(n) || 0) * 100) / 100);
+  const mon = c => c && c.moneda === "USD" ? "USD" : "ARS";
   const df = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", year: "numeric" });
   const fecha = s => { if (!s) return ""; const d = new Date(s + (s.length === 10 ? "T12:00:00" : "")); return isNaN(d) ? "" : df.format(d); };
   const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const icon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
-  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"], dolares: ["usd", "Dólares"] };
+  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"], dolares: ["usd", "Dólares"], pesos: ["cash", "Pesos"] };
+  const otroMetodo = cur => cur === "USD" ? "pesos" : "dolares";
   const usdf = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
   const leerCot = () => { try { return localStorage.getItem("cc-cotizacion") || ""; } catch { return ""; } };
   const guardarCot = v => { try { localStorage.setItem("cc-cotizacion", String(v)); } catch {} };
@@ -583,7 +598,15 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   function resumen() {
     const act = cuentas.filter(c => !saldada(c));
     const cIn = act.filter(c => c.tipo === "cobrar"), cOut = act.filter(c => c.tipo === "pagar");
-    const tIn = cIn.reduce((s, c) => s + resta(c), 0), tOut = cOut.reduce((s, c) => s + resta(c), 0);
+    const tot = (arr, cur) => arr.filter(c => mon(c) === cur).reduce((s, c) => s + resta(c), 0);
+    const tIn = tot(cIn, "ARS"), tOut = tot(cOut, "ARS"), uIn = tot(cIn, "USD"), uOut = tot(cOut, "USD");
+    const hayUsd = cuentas.some(c => mon(c) === "USD");
+    $("#usdIn").hidden = !(hayUsd && uIn > 0); $("#usdIn").textContent = "+ " + money(uIn, "USD");
+    $("#usdOut").hidden = !(hayUsd && uOut > 0); $("#usdOut").textContent = "+ " + money(uOut, "USD");
+    const nu = uIn - uOut, netoUsd = $("#netoUsd");
+    netoUsd.hidden = !hayUsd;
+    netoUsd.textContent = `En dólares: ${nu > 0 ? "+" : nu < 0 ? "−" : ""}${money(Math.abs(nu), "USD")}`;
+    netoUsd.style.color = nu > 0 ? "var(--hero-in)" : nu < 0 ? "var(--hero-out)" : "var(--hero-fg)";
     contar($("#totIn"), prevTot.in, tIn); contar($("#totOut"), prevTot.out, tOut);
     prevTot = { in: tIn, out: tOut };
     const pl = (n, a, b) => n === 1 ? a : b;
@@ -593,10 +616,10 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     const n = tIn - tOut, neto = $("#neto");
     neto.textContent = (n > 0 ? "+" : n < 0 ? "−" : "") + money(Math.abs(n));
     neto.style.color = n > 0 ? "var(--hero-in)" : n < 0 ? "var(--hero-out)" : "var(--hero-fg)";
-    $("#netoTxt").textContent = !cuentas.length ? "Todavía no anotaste nada" : n > 0 ? "A tu favor: te deben más de lo que debés" : n < 0 ? "En contra: debés más de lo que te deben" : "Estás a mano";
-    const total = tIn + tOut;
-    $("#barA").style.flexGrow = total ? tIn / total : 0;
-    $("#barB").style.flexGrow = total ? tOut / total : 0;
+    $("#netoTxt").textContent = !cuentas.length ? "Todavía no anotaste nada" : hayUsd && !tIn && !tOut ? "No tenés deudas en pesos" : n > 0 ? "A tu favor: te deben más de lo que debés" : n < 0 ? "En contra: debés más de lo que te deben" : "Estás a mano";
+    const [bA, bB] = tIn + tOut ? [tIn, tOut] : [uIn, uOut], total = bA + bB;
+    $("#barA").style.flexGrow = total ? bA / total : 0;
+    $("#barB").style.flexGrow = total ? bB / total : 0;
     $("#nTodo").textContent = cuentas.length || "";
     $("#nCobrar").textContent = cuentas.filter(c => c.tipo === "cobrar").length || "";
     $("#nPagar").textContent = cuentas.filter(c => c.tipo === "pagar").length || "";
@@ -623,7 +646,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     const comp = p.comprobante && store.url(p.comprobante) ? `<button class="comp" type="button" data-ver="${esc(store.url(p.comprobante))}" aria-label="Ver comprobante de la cuota ${i + 1}"><img src="${esc(store.url(p.comprobante))}" alt="" loading="lazy"></button>` : `<span></span>`;
     return `<li>
       <span class="nro num">#${i + 1}</span>
-      <span class="q"><b class="num">${money(p.monto)}</b><small>${esc(fecha(p.fecha))} · ${lab}${p.metodo === "dolares" && p.usd ? ` · US$${usdf.format(p.usd)} a ${money(p.cotizacion)}` : ""}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
+      <span class="q"><b class="num">${money(p.monto, mon(c))}</b><small>${esc(fecha(p.fecha))} · ${lab}${p.metodo === "dolares" && p.usd ? ` · US$${usdf.format(p.usd)} a ${money(p.cotizacion)}` : ""}${p.metodo === "pesos" && p.pesos ? ` · ${money(p.pesos)} a ${money(p.cotizacion)} por US$1` : ""}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
       ${comp}
       <button class="link peligro borrar-pago" type="button" data-borrar-pago="${i}" aria-label="Borrar cuota ${i + 1}">${icon("x")}</button>
     </li>`;
@@ -633,13 +656,14 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     if (saldada(c)) return "";
     const sig = (c.pagos || []).length + 1;
     const sug = Math.min(resta(c), cuotaValor(c));
-    const m = METODO[c.metodo] ? c.metodo : "efectivo";
+    const cur = mon(c), otro = otroMetodo(cur);
+    const m = (c.metodo === "efectivo" || c.metodo === "transferencia" || c.metodo === otro) ? c.metodo : (c.metodo === "dolares" || c.metodo === "pesos") ? otro : "efectivo";
     const cot = leerCot();
     const verbo = c.tipo === "cobrar" ? "Registrar cobro" : "Registrar pago";
     return `<form class="pago" data-pago="${esc(c.id)}" novalidate>
       <h3>${verbo} · cuota ${sig} de ${Math.max(sig, Number(c.cuotas) || 1)}</h3>
       <div class="grid">
-        <label class="f">Monto<input name="monto" id="pm-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" value="${Math.round(sug * 100) / 100}"></label>
+        <label class="f">Monto en ${cur === "USD" ? "dólares" : "pesos"}<input name="monto" id="pm-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" value="${Math.round(sug * 100) / 100}"></label>
         <label class="f">Fecha<input name="fecha" id="pf-${esc(c.id)}" type="date" value="${hoyISO()}"></label>
       </div>
       <fieldset>
@@ -647,12 +671,12 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
         <div class="opciones">
           <label><input type="radio" name="metodo" value="efectivo" ${m === "efectivo" ? "checked" : ""}><span>${icon("cash")}Efectivo</span></label>
           <label><input type="radio" name="metodo" value="transferencia" ${m === "transferencia" ? "checked" : ""}><span>${icon("bank")}Transferencia</span></label>
-          <label><input type="radio" name="metodo" value="dolares" ${m === "dolares" ? "checked" : ""}><span>${icon("usd")}Dólares</span></label>
+          <label><input type="radio" name="metodo" value="${otro}" ${m === otro ? "checked" : ""}><span>${icon(cur === "USD" ? "cash" : "usd")}${cur === "USD" ? "Pesos" : "Dólares"}</span></label>
         </div>
       </fieldset>
-      <div class="solo-usd" ${m === "dolares" ? "" : "hidden"}>
+      <div class="solo-usd" ${m === otro ? "" : "hidden"}>
         <div class="grid">
-          <label class="f">Dólares entregados<input name="usd" id="pu-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 100"></label>
+          <label class="f">${cur === "USD" ? "Pesos entregados" : "Dólares entregados"}<input name="usd" id="pu-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="${cur === "USD" ? "Ej. 120000" : "Ej. 100"}"></label>
           <label class="f">Cotización (1 US$ =)<input name="cot" id="pc-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 1200" value="${esc(cot)}"></label>
         </div>
         <p class="calc">Escribí los dólares y la cotización para calcular el monto.</p>
@@ -689,17 +713,17 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           </span>
         </span>
         <span class="cifra">
-          <span class="resta num">${ok ? money(c.monto) : money(resta(c))}</span>
-          <small class="num">${ok ? "pagado completo" : "de " + money(c.monto)}</small>
+          <span class="resta num">${ok ? money(c.monto, mon(c)) : money(resta(c), mon(c))}</span>
+          <small class="num">${ok ? "pagado completo" : "de " + money(c.monto, mon(c))}</small>
         </span>
         ${barraCuotas(c)}
       </button>
       <div class="det"><div><div class="det-in">
         <div class="resumen">
-          <div><span>Total</span><b class="num">${money(c.monto)}</b></div>
-          <div><span>Ya ${c.tipo === "cobrar" ? "cobrado" : "pagado"}</span><b class="num">${money(pagado(c))}</b></div>
-          <div><span>Falta</span><b class="num">${money(resta(c))}</b></div>
-          <div><span>Valor de cuota</span><b class="num">${money(cuotaValor(c))}</b></div>
+          <div><span>Total</span><b class="num">${money(c.monto, mon(c))}</b></div>
+          <div><span>Ya ${c.tipo === "cobrar" ? "cobrado" : "pagado"}</span><b class="num">${money(pagado(c), mon(c))}</b></div>
+          <div><span>Falta</span><b class="num">${money(resta(c), mon(c))}</b></div>
+          <div><span>Valor de cuota</span><b class="num">${money(cuotaValor(c), mon(c))}</b></div>
           ${c.fecha ? `<div><span>Desde</span><b>${esc(fecha(c.fecha))}</b></div>` : ""}
         </div>
         ${c.nota ? `<p class="nota">${esc(c.nota)}</p>` : ""}
@@ -719,15 +743,15 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   const claveP = n => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 
   function grupoPersona(g, i) {
-    const me = g.deudas.filter(c => c.tipo === "cobrar").reduce((s, c) => s + resta(c), 0);
-    const debo = g.deudas.filter(c => c.tipo === "pagar").reduce((s, c) => s + resta(c), 0);
-    const clase = me > debo ? "in" : debo > me ? "out" : "par";
+    const suma = (tipo, cur) => g.deudas.filter(c => c.tipo === tipo && mon(c) === cur).reduce((s, c) => s + resta(c), 0);
+    const meA = suma("cobrar", "ARS"), meU = suma("cobrar", "USD"), deA = suma("pagar", "ARS"), deU = suma("pagar", "USD");
+    const me = meA + meU, debo = deA + deU;
+    const clase = (meA - deA || meU - deU) > 0 ? "in" : (meA - deA || meU - deU) < 0 ? "out" : "par";
     const pend = g.deudas.filter(c => !saldada(c)).length, n = g.deudas.length;
-    const totM = g.deudas.reduce((s, c) => s + (Number(c.monto) || 0), 0);
-    const pct = totM ? Math.min(1, g.deudas.reduce((s, c) => s + pagado(c), 0) / totM) : 0;
+    const pct = g.deudas.reduce((x, c) => x + Math.min(1, pagado(c) / (Number(c.monto) || 1)), 0) / g.deudas.length;
     const tot = [
-      me > 0 ? `<span>Te debe</span><b class="in num">${money(me)}</b>` : "",
-      debo > 0 ? `<span>Le debés</span><b class="out num">${money(debo)}</b>` : "",
+      me > 0 ? `<span>Te debe</span>${meA > 0 ? `<b class="in num">${money(meA)}</b>` : ""}${meU > 0 ? `<b class="in num">${money(meU, "USD")}</b>` : ""}` : "",
+      debo > 0 ? `<span>Le debés</span>${deA > 0 ? `<b class="out num">${money(deA)}</b>` : ""}${deU > 0 ? `<b class="out num">${money(deU, "USD")}</b>` : ""}` : "",
       !me && !debo ? `<span>Todo saldado</span>` : "",
     ].join("");
     return `<li class="persona ${clase}" style="--i:${i}">
@@ -778,9 +802,13 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   /* ---------- Formulario de cuenta ---------- */
   const panel = $("#panelNueva"), fN = $("#fNueva");
   function actualizarCuota() {
-    const m = parseFloat($("#nMonto").value) || 0, q = Math.max(1, parseInt($("#nCuotas").value) || 1);
-    $("#nCuotaValor").textContent = q === 1 ? `1 pago de ${money(m)}` : `${q} cuotas de ${money(m / q)}`;
+    const cur = fN.moneda.value, m = parseFloat($("#nMonto").value) || 0, q = Math.max(1, parseInt($("#nCuotas").value) || 1);
+    $("#nCuotaValor").textContent = q === 1 ? `1 pago de ${money(m, cur)}` : `${q} cuotas de ${money(m / q, cur)}`;
+    $("#nMontoLab").textContent = cur === "USD" ? "Monto total en dólares" : "Monto total en pesos";
+    $("#mDolares").value = otroMetodo(cur);
+    $("#mOtroLab").textContent = cur === "USD" ? "Pesos" : "Dólares";
   }
+  fN.addEventListener("change", e => { if (e.target.name === "moneda") actualizarCuota(); });
   function abrirForm(c) {
     editando = c ? c.id : null;
     fN.reset();
@@ -790,7 +818,8 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
       $(c.tipo === "pagar" ? "#tPagar" : "#tCobrar").checked = true;
       $("#nNombre").value = c.nombre || ""; $("#nMonto").value = c.monto ?? "";
       $("#nCuotas").value = c.cuotas || 1; $("#nFecha").value = c.fecha || "";
-      $(c.metodo === "transferencia" ? "#mTransf" : c.metodo === "dolares" ? "#mDolares" : "#mEfectivo").checked = true;
+      $(mon(c) === "USD" ? "#monUSD" : "#monARS").checked = true;
+      $(c.metodo === "transferencia" ? "#mTransf" : (c.metodo === "dolares" || c.metodo === "pesos") ? "#mDolares" : "#mEfectivo").checked = true;
       $("#nNota").value = c.nota || "";
       $("#nConcepto").value = c.concepto || "";
     } else {
@@ -823,7 +852,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
       ...(previa || {}),
       id: previa ? previa.id : uid(),
       tipo: fN.tipo.value, nombre, monto: Math.round(monto * 100) / 100, cuotas,
-      metodo: fN.metodo.value, fecha: $("#nFecha").value || "", nota: $("#nNota").value.trim(), concepto: $("#nConcepto").value.trim(),
+      moneda: fN.moneda.value, metodo: fN.metodo.value, fecha: $("#nFecha").value || "", nota: $("#nNota").value.trim(), concepto: $("#nConcepto").value.trim(),
       pagos: previa ? previa.pagos || [] : [], creado: previa ? previa.creado || Date.now() : Date.now(),
     };
     if (previa) delete c.ejemplo;
@@ -893,8 +922,9 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     const f = e.target.closest("form.pago"); if (!f) return;
     if (e.target.name === "metodo") {
       $(".solo-transf", f).hidden = e.target.value !== "transferencia";
-      $(".solo-usd", f).hidden = e.target.value !== "dolares";
-      if (e.target.value === "dolares") calcularUsd(f);
+      const conv = e.target.value === "dolares" || e.target.value === "pesos";
+      $(".solo-usd", f).hidden = !conv;
+      if (conv) calcularUsd(f);
     }
     if (e.target.name === "foto") {
       const file = e.target.files[0], prev = $(".prev", f);
@@ -904,12 +934,15 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
   });
 
   function calcularUsd(f) {
-    const usd = parseFloat(f.usd.value), cot = parseFloat(f.cot.value), calc = $(".calc", f);
-    if (usd > 0 && cot > 0) {
-      const pesos = Math.round(usd * cot * 100) / 100;
-      f.monto.value = pesos;
-      calc.innerHTML = `US$${usdf.format(usd)} × ${money(cot)} = <b>${money(pesos)}</b>`;
-    } else calc.textContent = "Escribí los dólares y la cotización para calcular el monto.";
+    const c = cuentas.find(x => x.id === f.dataset.pago), enUsd = mon(c) === "USD";
+    const otro = parseFloat(f.usd.value), cot = parseFloat(f.cot.value), calc = $(".calc", f);
+    if (otro > 0 && cot > 0) {
+      const v = Math.round((enUsd ? otro / cot : otro * cot) * 100) / 100;
+      f.monto.value = v;
+      calc.innerHTML = enUsd
+        ? `${money(otro)} ÷ ${money(cot)} = <b>${money(v, "USD")}</b>`
+        : `US$${usdf.format(otro)} × ${money(cot)} = <b>${money(v)}</b>`;
+    } else calc.textContent = `Escribí los ${enUsd ? "pesos" : "dólares"} y la cotización para calcular el monto.`;
   }
   lista.addEventListener("input", e => {
     const f = e.target.closest("form.pago");
@@ -923,16 +956,16 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     const err = $(".error", f), btn = $("button[type=submit]", f);
     const metodoSel = f.metodo.value;
     let extra = {};
-    if (metodoSel === "dolares") {
-      const usd = parseFloat(f.usd.value), cot = parseFloat(f.cot.value);
-      if (!(usd > 0)) { err.textContent = "Escribí cuántos dólares se entregaron."; err.hidden = false; f.usd.focus(); return; }
+    if (metodoSel === "dolares" || metodoSel === "pesos") {
+      const otro = parseFloat(f.usd.value), cot = parseFloat(f.cot.value);
+      if (!(otro > 0)) { err.textContent = `Escribí cuántos ${metodoSel === "pesos" ? "pesos" : "dólares"} se entregaron.`; err.hidden = false; f.usd.focus(); return; }
       if (!(cot > 0)) { err.textContent = "Escribí la cotización del dólar."; err.hidden = false; f.cot.focus(); return; }
       calcularUsd(f); guardarCot(cot);
-      extra = { usd: Math.round(usd * 100) / 100, cotizacion: Math.round(cot * 100) / 100 };
+      extra = { [metodoSel === "pesos" ? "pesos" : "usd"]: Math.round(otro * 100) / 100, cotizacion: Math.round(cot * 100) / 100 };
     }
     const monto = parseFloat(f.monto.value);
     if (!(monto > 0)) { err.textContent = "Escribí cuánto se pagó."; err.hidden = false; f.monto.focus(); return; }
-    if (monto > resta(c) + 0.004) { err.textContent = `El monto supera lo que falta (${money(resta(c))}).`; err.hidden = false; f.monto.focus(); return; }
+    if (monto > resta(c) + 0.004) { err.textContent = `El monto supera lo que falta (${money(resta(c), mon(c))}).`; err.hidden = false; f.monto.focus(); return; }
     const metodo = f.metodo.value;
     const file = metodo === "transferencia" && f.foto.files[0];
     btn.disabled = true; err.hidden = true;
