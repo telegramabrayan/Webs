@@ -122,21 +122,26 @@ h1 { font: 750 clamp(2rem, 6vw, 3.1rem)/1 var(--display); letter-spacing: -.035e
 .panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s var(--ease-out); }
 .panel.open { grid-template-rows: 1fr; }
 .panel > div { overflow: hidden; min-height: 0; }
-form.ficha { background: var(--sheet); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px clamp(16px, 4vw, 24px); display: grid; gap: 16px; margin-bottom: 4px; }
+form.ficha { background: var(--sheet); border-radius: calc(var(--r) + 4px); box-shadow: var(--shadow); padding: clamp(22px, 5vw, 30px) clamp(18px, 5vw, 30px); display: grid; gap: 28px; margin-bottom: 4px; }
+form.ficha .grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px 16px; }
+form.ficha .acciones { border-top: 1px solid var(--line); padding-top: 20px; }
 .ficha h2 { font: 700 1.25rem/1.2 var(--display); letter-spacing: -.02em; margin: 0; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
-label.f { display: grid; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
-.f input, .f select, .f textarea { width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 10px 12px; font-size: 15px; font-weight: 500; color: var(--ink); transition: border-color .2s, box-shadow .2s; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px 14px; align-items: start; }
+label.f { display: grid; align-content: start; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.f input, .f select, .f textarea { width: 100%; min-height: 48px; border: 1px solid var(--line); background: var(--paper); border-radius: 12px; padding: 12px 14px; font-size: 16px; font-weight: 500; color: var(--ink); transition: border-color .2s, box-shadow .2s; }
 .f input:focus, .f select:focus, .f textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus) 20%, transparent); }
 .f input::placeholder, .f textarea::placeholder { color: color-mix(in oklab, var(--muted) 80%, transparent); }
 .f textarea { resize: vertical; min-height: 44px; }
-.f .ayuda { font-weight: 500; font-size: 12px; }
-fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
-legend { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0; margin-bottom: 6px; }
-.opciones { display: flex; flex-wrap: wrap; gap: 8px; }
-.opciones label { position: relative; }
+.f .ayuda { font-weight: 500; font-size: 12.5px; line-height: 1.4; }
+.f input[type="date"] { -webkit-appearance: none; appearance: none; text-align: left; display: flex; align-items: center; }
+.f input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 0; min-width: 0; }
+legend { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0; margin-bottom: 10px; }
+.opciones { display: flex; flex-wrap: wrap; gap: 10px; }
+.opciones label { position: relative; flex: 1 1 auto; display: flex; }
+.opciones .lab { font: inherit; }
 .opciones input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.opciones span { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--muted); transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
+.opciones label > span { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--line); font-weight: 600; font-size: 14px; color: var(--muted); transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
 .opciones input:checked + span { color: var(--ink); border-color: var(--ink); background: color-mix(in oklab, var(--ink) 6%, transparent); }
 .opciones input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .opciones .t-in input:checked + span { color: var(--in); border-color: var(--in); background: color-mix(in oklab, var(--in) 10%, transparent); }
@@ -236,7 +241,8 @@ ol.pagos .q small { color: var(--muted); font-size: 12px; }
 .comp { border: 0; padding: 0; background: none; cursor: zoom-in; border-radius: 7px; line-height: 0; }
 .comp img { width: 40px; height: 40px; object-fit: cover; border-radius: 7px; box-shadow: 0 0 0 1px var(--line); }
 .sin { color: var(--muted); font-size: 13px; margin: 0; }
-form.pago { background: var(--paper); border-radius: 12px; padding: 16px; display: grid; gap: 14px; }
+form.pago { background: var(--paper); border-radius: 14px; padding: clamp(16px, 4vw, 22px); display: grid; gap: 22px; }
+form.pago .f input { background: var(--sheet); }
 .pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
 .confirmar { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
 
@@ -375,7 +381,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           <legend>Moneda de la deuda</legend>
           <div class="opciones">
             <label><input type="radio" name="moneda" value="ARS" id="monARS" checked><span>Pesos ($)</span></label>
-            <label><input type="radio" name="moneda" value="USD" id="monUSD"><span>${'${'}"Dólares (US$)"}</span></label>
+            <label><input type="radio" name="moneda" value="USD" id="monUSD"><span>Dólares (US$)</span></label>
           </div>
         </fieldset>
         <div class="grid">
@@ -403,7 +409,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
           <div class="opciones">
             <label><input type="radio" name="metodo" value="efectivo" id="mEfectivo" checked><span><svg class="i"><use href="#i-cash"/></svg>Efectivo</span></label>
             <label><input type="radio" name="metodo" value="transferencia" id="mTransf"><span><svg class="i"><use href="#i-bank"/></svg>Transferencia</span></label>
-            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg><span id="mOtroLab">Dólares</span></span></label>
+            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg><b class="lab" id="mOtroLab">Dólares</b></span></label>
           </div>
         </fieldset>
         <label class="f">Nota (opcional)
