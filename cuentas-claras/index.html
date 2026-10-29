@@ -253,12 +253,13 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     <p class="sub">Anotá quién te debe y a quién le debés. Cada persona ve solo sus propias cuentas.</p>
   </div>
   <form id="fAcceso" novalidate>
-    <label class="f">Email
-      <input id="aEmail" type="email" autocomplete="email" inputmode="email" required>
+    <label class="f">Tu nombre
+      <input id="aEmail" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="20" placeholder="Ej. Carla" required>
+      <span class="ayuda" id="aAyudaNombre" hidden>Con este nombre vas a entrar siempre. Usá 3 a 20 letras o números.</span>
     </label>
     <label class="f">Contraseña
-      <input id="aClave" type="password" autocomplete="current-password" minlength="6" required>
-      <span class="ayuda" id="aAyuda" hidden>Mínimo 6 caracteres.</span>
+      <input id="aClave" type="password" autocomplete="current-password" minlength="4" required>
+      <span class="ayuda" id="aAyuda" hidden>Mínimo 4 caracteres. Puede ser un número, como 2580.</span>
     </label>
     <p class="error" id="aError" hidden></p>
     <button class="btn" type="submit" id="aBoton">Entrar</button>
@@ -441,7 +442,7 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
       url: p => fotos.get(p) || "",
     };
     $("#modo").textContent = "Privado: solo vos ves tus cuentas";
-    $("#hoy").textContent = `Las cuentas de ${usuario.email.split("@")[0]} · ${hoyTexto}`;
+    $("#hoy").textContent = `Las cuentas de ${(usuario.user_metadata && usuario.user_metadata.nombre) || usuario.email.split("@")[0]} · ${hoyTexto}`;
     cargar();
   }
 
@@ -454,29 +455,33 @@ form.pago { background: var(--paper); border-radius: 12px; padding: 16px; displa
     $("#aCambiar").textContent = crear ? "Entrar" : "Crear mi cuenta";
     $("#aClave").autocomplete = crear ? "new-password" : "current-password";
     $("#aAyuda").hidden = !crear;
+    $("#aAyudaNombre").hidden = !crear;
     $("#aError").hidden = true;
   }
   $("#aCambiar").addEventListener("click", () => modoAcceso(!creando));
+  const DOMINIO = "usuarios.cuentas-claras.app";
+  const aUsuario = n => n.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, ".").replace(/[^a-z0-9._-]/g, "");
+  const aClaveReal = c => "cc-" + c;
   $("#fAcceso").addEventListener("submit", async e => {
     e.preventDefault();
-    const email = $("#aEmail").value.trim().toLowerCase(), clave = $("#aClave").value, err = $("#aError"), btn = $("#aBoton");
-    const falla = m => { err.textContent = m; err.hidden = false; };
-    if (!/^\S+@\S+\.\S+$/.test(email)) return falla("Escribí un email válido.");
-    if (clave.length < 6) return falla("La contraseña tiene que tener al menos 6 caracteres.");
+    const nombre = $("#aEmail").value.trim(), usuario = aUsuario(nombre), clave = $("#aClave").value, err = $("#aError"), btn = $("#aBoton");
+    const falla = m => { err.textContent = m; err.hidden = false; btn.disabled = false; };
+    if (usuario.length < 3 || usuario.length > 20) return falla("El nombre tiene que tener entre 3 y 20 letras o números.");
+    if (clave.length < 4) return falla("La contraseña tiene que tener al menos 4 caracteres.");
     btn.disabled = true; err.hidden = true;
-    const { data, error } = creando
-      ? await sb.auth.signUp({ email, password: clave })
-      : await sb.auth.signInWithPassword({ email, password: clave });
-    btn.disabled = false;
-    if (error) {
-      const m = (error.message || "").toLowerCase();
-      if (m.includes("database error") || m.includes("no está invitado")) return falla("Ese email no está invitado. Pedile al dueño que te agregue a la lista.");
-      if (m.includes("already registered")) { modoAcceso(false); return falla("Ese email ya tiene cuenta. Entrá con tu contraseña."); }
-      if (m.includes("invalid login")) return falla("Email o contraseña incorrectos.");
-      if (m.includes("email not confirmed")) return falla("Tenés que confirmar tu email antes de entrar. Revisá tu correo.");
-      return falla("No se pudo entrar. Probá de nuevo en un momento.");
+    if (creando) {
+      const { error } = await sb.functions.invoke("registrar", { body: { usuario, clave: aClaveReal(clave), nombre } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context.json()).error; } catch {}
+        if (code === "usuario_existe") { modoAcceso(false); return falla("Ese nombre ya está usado. Si es tuyo, entrá con tu contraseña; si no, elegí otro."); }
+        if (code === "lleno") return falla("Ya hay 10 cuentas creadas. Pedile al dueño que libere un lugar.");
+        return falla("No se pudo crear la cuenta. Probá de nuevo en un momento.");
+      }
     }
-    if (creando && !data.session) falla("Te mandamos un email para confirmar tu cuenta. Confirmalo y después entrá.");
+    const { error } = await sb.auth.signInWithPassword({ email: `${usuario}@${DOMINIO}`, password: aClaveReal(clave) });
+    if (error) return falla((error.message || "").toLowerCase().includes("invalid login") ? "Nombre o contraseña incorrectos." : "No se pudo entrar. Probá de nuevo en un momento.");
+    btn.disabled = false;
   });
   $("#btnSalir").addEventListener("click", () => sb.auth.signOut());
 
