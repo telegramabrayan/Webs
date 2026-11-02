@@ -101,7 +101,7 @@ h1 { font: 750 clamp(2rem, 6vw, 3.1rem)/1 var(--display); letter-spacing: -.035e
 .neto .et { font-size: 13px; font-weight: 600; letter-spacing: .02em; }
 .neto .v { font: 800 clamp(2.6rem, 11vw, 4.4rem)/.95 var(--display); letter-spacing: -.04em; overflow-wrap: anywhere; }
 .neto .leyenda { font-size: 14px; color: var(--hero-muted); }
-.neto-usd { font: 700 1.25rem/1.2 var(--display); letter-spacing: -.02em; }
+.neto-usd { font: 700 1.2rem/1.25 var(--display); letter-spacing: -.02em; display: flex; flex-wrap: wrap; gap: 2px 16px; }
 .usd-tot { font: 700 1.05rem/1.2 var(--display); }
 .lado.in .usd-tot { color: var(--hero-in); } .lado.out .usd-tot { color: var(--hero-out); }
 .barra { position: relative; height: 12px; border-radius: 99px; background: rgb(255 255 255 / .1); overflow: hidden; display: flex; }
@@ -390,6 +390,7 @@ form.pago .f input { background: var(--sheet); }
           <div class="opciones">
             <label><input type="radio" name="moneda" value="ARS" id="monARS" checked><span>Pesos ($)</span></label>
             <label><input type="radio" name="moneda" value="USD" id="monUSD"><span>Dólares (US$)</span></label>
+            <label><input type="radio" name="moneda" value="PEN" id="monPEN"><span>Soles (S/)</span></label>
           </div>
         </fieldset>
         <div class="grid">
@@ -417,7 +418,9 @@ form.pago .f input { background: var(--sheet); }
           <div class="opciones">
             <label><input type="radio" name="metodo" value="efectivo" id="mEfectivo" checked><span><svg class="i"><use href="#i-cash"/></svg>Efectivo</span></label>
             <label><input type="radio" name="metodo" value="transferencia" id="mTransf"><span><svg class="i"><use href="#i-bank"/></svg>Transferencia</span></label>
-            <label><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg><b class="lab" id="mOtroLab">Dólares</b></span></label>
+            <label data-mon="USD"><input type="radio" name="metodo" value="dolares" id="mDolares"><span><svg class="i"><use href="#i-usd"/></svg>Dólares</span></label>
+            <label data-mon="ARS" hidden><input type="radio" name="metodo" value="pesos" id="mPesos"><span><svg class="i"><use href="#i-cash"/></svg>Pesos</span></label>
+            <label data-mon="PEN"><input type="radio" name="metodo" value="soles" id="mSoles"><span><svg class="i"><use href="#i-cash"/></svg>Soles</span></label>
           </div>
         </fieldset>
         <label class="f">Nota (opcional)
@@ -446,19 +449,29 @@ form.pago .f input { background: var(--sheet); }
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const nf = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
-  const money = (n, cur) => (cur === "USD" ? "US$" : "$") + nf.format(Math.round((Number(n) || 0) * 100) / 100);
-  const mon = c => c && c.moneda === "USD" ? "USD" : "ARS";
+  const MONEDAS = {
+    ARS: { sim: "$", nombre: "pesos", Nombre: "Pesos", metodo: "pesos", icono: "cash", fuerza: 1 },
+    PEN: { sim: "S/ ", nombre: "soles", Nombre: "Soles", metodo: "soles", icono: "cash", fuerza: 2 },
+    USD: { sim: "US$", nombre: "dólares", Nombre: "Dólares", metodo: "dolares", icono: "usd", fuerza: 3 },
+  };
+  const ORDEN = ["ARS", "USD", "PEN"];
+  const money = (n, cur) => (MONEDAS[cur] || MONEDAS.ARS).sim + nf.format(Math.round((Number(n) || 0) * 100) / 100);
+  const mon = c => c && MONEDAS[c.moneda] ? c.moneda : "ARS";
+  const monDeMetodo = m => ORDEN.find(k => MONEDAS[k].metodo === m) || null;
+  // La cotización siempre se expresa como "1 de la moneda más fuerte = X de la más débil".
+  const par = (a, b) => MONEDAS[a].fuerza > MONEDAS[b].fuerza ? [a, b] : [b, a];
+  let monPrincipal = "ARS";
   const df = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", year: "numeric" });
   const fecha = s => { if (!s) return ""; const d = new Date(s + (s.length === 10 ? "T12:00:00" : "")); return isNaN(d) ? "" : df.format(d); };
   const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
   const icon = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
-  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"], dolares: ["usd", "Dólares"], pesos: ["cash", "Pesos"] };
-  const otroMetodo = cur => cur === "USD" ? "pesos" : "dolares";
+  const METODO = { efectivo: ["cash", "Efectivo"], transferencia: ["bank", "Transferencia"], dolares: ["usd", "Dólares"], pesos: ["cash", "Pesos"], soles: ["cash", "Soles"] };
   const usdf = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
-  const leerCot = () => { try { return localStorage.getItem("cc-cotizacion") || ""; } catch { return ""; } };
-  const guardarCot = v => { try { localStorage.setItem("cc-cotizacion", String(v)); } catch {} };
+  const claveCot = (a, b) => { const [f, d] = par(a, b); return f === "USD" && d === "ARS" ? "cc-cotizacion" : `cc-cot-${f}-${d}`; };
+  const leerCot = (a, b) => { try { return localStorage.getItem(claveCot(a, b)) || ""; } catch { return ""; } };
+  const guardarCot = (a, b, v) => { try { localStorage.setItem(claveCot(a, b), String(v)); } catch {} };
 
   $("#hoy").textContent = new Intl.DateTimeFormat("es", { weekday: "long", day: "numeric", month: "long" }).format(new Date()).replace(/^./, c => c.toUpperCase());
 
@@ -599,11 +612,11 @@ form.pago .f input { background: var(--sheet); }
 
   /* ---------- Resumen ---------- */
   function contar(el, desde, hasta) {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches || desde === hasta) { el.textContent = money(hasta); return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches || desde === hasta) { el.textContent = money(hasta, monPrincipal); return; }
     const t0 = performance.now(), dur = 900;
     const paso = t => {
       const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(2, -10 * k);
-      el.textContent = money(desde + (hasta - desde) * (k === 1 ? 1 : e));
+      el.textContent = money(desde + (hasta - desde) * (k === 1 ? 1 : e), monPrincipal);
       if (k < 1) requestAnimationFrame(paso);
     };
     requestAnimationFrame(paso);
@@ -613,14 +626,23 @@ form.pago .f input { background: var(--sheet); }
     const act = cuentas.filter(c => !saldada(c));
     const cIn = act.filter(c => c.tipo === "cobrar"), cOut = act.filter(c => c.tipo === "pagar");
     const tot = (arr, cur) => arr.filter(c => mon(c) === cur).reduce((s, c) => s + resta(c), 0);
-    const tIn = tot(cIn, "ARS"), tOut = tot(cOut, "ARS"), uIn = tot(cIn, "USD"), uOut = tot(cOut, "USD");
-    const hayUsd = cuentas.some(c => mon(c) === "USD");
-    $("#usdIn").hidden = !(hayUsd && uIn > 0); $("#usdIn").textContent = "+ " + money(uIn, "USD");
-    $("#usdOut").hidden = !(hayUsd && uOut > 0); $("#usdOut").textContent = "+ " + money(uOut, "USD");
-    const nu = uIn - uOut, netoUsd = $("#netoUsd");
-    netoUsd.hidden = !hayUsd;
-    netoUsd.textContent = `En dólares: ${nu > 0 ? "+" : nu < 0 ? "−" : ""}${money(Math.abs(nu), "USD")}`;
-    netoUsd.style.color = nu > 0 ? "var(--hero-in)" : nu < 0 ? "var(--hero-out)" : "var(--hero-fg)";
+    const usos = ORDEN.map(k => [k, act.filter(c => mon(c) === k).length]).sort((a, b) => b[1] - a[1]);
+    const antes = monPrincipal;
+    monPrincipal = usos[0][1] ? usos[0][0] : (cuentas.length ? mon(cuentas[0]) : "ARS");
+    if (antes !== monPrincipal) prevTot = { in: 0, out: 0 };
+    const tIn = tot(cIn, monPrincipal), tOut = tot(cOut, monPrincipal);
+    const otras = ORDEN.filter(k => k !== monPrincipal && cuentas.some(c => mon(c) === k));
+    const lista2 = (arr) => otras.map(k => [k, tot(arr, k)]).filter(x => x[1] > 0).map(([k, v]) => "+ " + money(v, k)).join(" · ");
+    const xIn = lista2(cIn), xOut = lista2(cOut);
+    $("#usdIn").hidden = !xIn; $("#usdIn").textContent = xIn;
+    $("#usdOut").hidden = !xOut; $("#usdOut").textContent = xOut;
+    const netoUsd = $("#netoUsd");
+    netoUsd.hidden = !otras.length;
+    netoUsd.innerHTML = otras.map(k => {
+      const v = tot(cIn, k) - tot(cOut, k);
+      const col = v > 0 ? "var(--hero-in)" : v < 0 ? "var(--hero-out)" : "var(--hero-fg)";
+      return `<span style="color:${col}">En ${MONEDAS[k].nombre}: ${v > 0 ? "+" : v < 0 ? "−" : ""}${money(Math.abs(v), k)}</span>`;
+    }).join("");
     contar($("#totIn"), prevTot.in, tIn); contar($("#totOut"), prevTot.out, tOut);
     prevTot = { in: tIn, out: tOut };
     const pl = (n, a, b) => n === 1 ? a : b;
@@ -628,10 +650,10 @@ form.pago .f input { background: var(--sheet); }
     $("#detIn").textContent = pIn ? `${pIn} ${pl(pIn, "persona", "personas")} por cobrar` : "Sin cuentas por cobrar";
     $("#detOut").textContent = pOut ? `${pOut} ${pl(pOut, "persona", "personas")} por pagar` : "Sin cuentas por pagar";
     const n = tIn - tOut, neto = $("#neto");
-    neto.textContent = (n > 0 ? "+" : n < 0 ? "−" : "") + money(Math.abs(n));
+    neto.textContent = (n > 0 ? "+" : n < 0 ? "−" : "") + money(Math.abs(n), monPrincipal);
     neto.style.color = n > 0 ? "var(--hero-in)" : n < 0 ? "var(--hero-out)" : "var(--hero-fg)";
-    $("#netoTxt").textContent = !cuentas.length ? "Todavía no anotaste nada" : hayUsd && !tIn && !tOut ? "No tenés deudas en pesos" : n > 0 ? "A tu favor: te deben más de lo que debés" : n < 0 ? "En contra: debés más de lo que te deben" : "Estás a mano";
-    const [bA, bB] = tIn + tOut ? [tIn, tOut] : [uIn, uOut], total = bA + bB;
+    $("#netoTxt").textContent = !cuentas.length ? "Todavía no anotaste nada" : !act.length ? "Todo saldado" : n > 0 ? "A tu favor: te deben más de lo que debés" : n < 0 ? "En contra: debés más de lo que te deben" : "Estás a mano";
+    const [bA, bB] = [tIn, tOut], total = bA + bB;
     $("#barA").style.flexGrow = total ? bA / total : 0;
     $("#barB").style.flexGrow = total ? bB / total : 0;
     $("#nTodo").textContent = cuentas.length || "";
@@ -660,24 +682,32 @@ form.pago .f input { background: var(--sheet); }
     const comp = p.comprobante && store.url(p.comprobante) ? `<button class="comp" type="button" data-ver="${esc(store.url(p.comprobante))}" aria-label="Ver comprobante de la cuota ${i + 1}"><img src="${esc(store.url(p.comprobante))}" alt="" loading="lazy"></button>` : `<span></span>`;
     return `<li>
       <span class="nro num">#${i + 1}</span>
-      <span class="q"><b class="num">${money(p.monto, mon(c))}</b><small>${esc(fecha(p.fecha))} · ${lab}${p.metodo === "dolares" && p.usd ? ` · US$${usdf.format(p.usd)} a ${money(p.cotizacion)}` : ""}${p.metodo === "pesos" && p.pesos ? ` · ${money(p.pesos)} a ${money(p.cotizacion)} por US$1` : ""}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
+      <span class="q"><b class="num">${money(p.monto, mon(c))}</b><small>${esc(fecha(p.fecha))} · ${lab}${detalleConv(c, p)}${p.metodo === "transferencia" && !p.comprobante ? " · sin comprobante" : ""}</small></span>
       ${comp}
       <button class="link peligro borrar-pago" type="button" data-borrar-pago="${i}" aria-label="Borrar cuota ${i + 1}">${icon("x")}</button>
     </li>`;
+  }
+
+  function detalleConv(c, p) {
+    const P = p.monedaEntregada || (p.usd ? "USD" : p.pesos ? "ARS" : null), D = mon(c);
+    const ent = p.entregado ?? p.usd ?? p.pesos;
+    if (!P || !ent || !p.cotizacion || P === D) return "";
+    const [f, d] = par(P, D);
+    return ` · ${money(ent, P)} (1 ${MONEDAS[f].sim.trim()} = ${money(p.cotizacion, d)})`;
   }
 
   function formPago(c) {
     if (saldada(c)) return "";
     const sig = (c.pagos || []).length + 1;
     const sug = Math.min(resta(c), cuotaValor(c));
-    const cur = mon(c), otro = otroMetodo(cur);
-    const m = (c.metodo === "efectivo" || c.metodo === "transferencia" || c.metodo === otro) ? c.metodo : (c.metodo === "dolares" || c.metodo === "pesos") ? otro : "efectivo";
-    const cot = leerCot();
+    const cur = mon(c), otras = ORDEN.filter(k => k !== cur);
+    const mc = monDeMetodo(c.metodo);
+    const m = (c.metodo === "efectivo" || c.metodo === "transferencia" || (mc && mc !== cur)) ? c.metodo : "efectivo";
     const verbo = c.tipo === "cobrar" ? "Registrar cobro" : "Registrar pago";
     return `<form class="pago" data-pago="${esc(c.id)}" novalidate>
       <h3>${verbo} · cuota ${sig} de ${Math.max(sig, Number(c.cuotas) || 1)}</h3>
       <div class="grid">
-        <label class="f">Monto en ${cur === "USD" ? "dólares" : "pesos"}<input name="monto" id="pm-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" value="${Math.round(sug * 100) / 100}"></label>
+        <label class="f">Monto en ${MONEDAS[cur].nombre}<input name="monto" id="pm-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" value="${Math.round(sug * 100) / 100}"></label>
         <label class="f">Fecha<input name="fecha" id="pf-${esc(c.id)}" type="date" value="${hoyISO()}"></label>
       </div>
       <fieldset>
@@ -685,15 +715,15 @@ form.pago .f input { background: var(--sheet); }
         <div class="opciones">
           <label><input type="radio" name="metodo" value="efectivo" ${m === "efectivo" ? "checked" : ""}><span>${icon("cash")}Efectivo</span></label>
           <label><input type="radio" name="metodo" value="transferencia" ${m === "transferencia" ? "checked" : ""}><span>${icon("bank")}Transferencia</span></label>
-          <label><input type="radio" name="metodo" value="${otro}" ${m === otro ? "checked" : ""}><span>${icon(cur === "USD" ? "cash" : "usd")}${cur === "USD" ? "Pesos" : "Dólares"}</span></label>
+          ${otras.map(k => `<label><input type="radio" name="metodo" value="${MONEDAS[k].metodo}" ${m === MONEDAS[k].metodo ? "checked" : ""}><span>${icon(MONEDAS[k].icono)}${MONEDAS[k].Nombre}</span></label>`).join("")}
         </div>
       </fieldset>
-      <div class="solo-usd" ${m === otro ? "" : "hidden"}>
+      <div class="solo-usd" hidden>
         <div class="grid">
-          <label class="f">${cur === "USD" ? "Pesos entregados" : "Dólares entregados"}<input name="usd" id="pu-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="${cur === "USD" ? "Ej. 120000" : "Ej. 100"}"></label>
-          <label class="f">Cotización (1 US$ =)<input name="cot" id="pc-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Ej. 1200" value="${esc(cot)}"></label>
+          <label class="f"><span class="l-ent">Entregado</span><input name="usd" id="pu-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.01"></label>
+          <label class="f"><span class="l-cot">Cotización</span><input name="cot" id="pc-${esc(c.id)}" type="number" inputmode="decimal" min="0" step="0.0001"></label>
         </div>
-        <p class="calc">Escribí los dólares y la cotización para calcular el monto.</p>
+        <p class="calc"></p>
       </div>
       <div class="foto solo-transf" ${m === "transferencia" ? "" : "hidden"}>
         <label class="pick">${icon("cam")}<span class="pick-t">Agregar foto del comprobante</span><input type="file" name="foto" accept="image/*"></label>
@@ -758,14 +788,16 @@ form.pago .f input { background: var(--sheet); }
 
   function grupoPersona(g, i) {
     const suma = (tipo, cur) => g.deudas.filter(c => c.tipo === tipo && mon(c) === cur).reduce((s, c) => s + resta(c), 0);
-    const meA = suma("cobrar", "ARS"), meU = suma("cobrar", "USD"), deA = suma("pagar", "ARS"), deU = suma("pagar", "USD");
-    const me = meA + meU, debo = deA + deU;
-    const clase = (meA - deA || meU - deU) > 0 ? "in" : (meA - deA || meU - deU) < 0 ? "out" : "par";
+    const meX = ORDEN.map(k => [k, suma("cobrar", k)]).filter(x => x[1] > 0);
+    const deX = ORDEN.map(k => [k, suma("pagar", k)]).filter(x => x[1] > 0);
+    const me = meX.length, debo = deX.length;
+    const bal = ORDEN.map(k => suma("cobrar", k) - suma("pagar", k)).find(v => v !== 0) || 0;
+    const clase = bal > 0 ? "in" : bal < 0 ? "out" : "par";
     const pend = g.deudas.filter(c => !saldada(c)).length, n = g.deudas.length;
     const pct = g.deudas.reduce((x, c) => x + Math.min(1, pagado(c) / (Number(c.monto) || 1)), 0) / g.deudas.length;
     const tot = [
-      me > 0 ? `<span>Te debe</span>${meA > 0 ? `<b class="in num">${money(meA)}</b>` : ""}${meU > 0 ? `<b class="in num">${money(meU, "USD")}</b>` : ""}` : "",
-      debo > 0 ? `<span>Le debés</span>${deA > 0 ? `<b class="out num">${money(deA)}</b>` : ""}${deU > 0 ? `<b class="out num">${money(deU, "USD")}</b>` : ""}` : "",
+      me ? `<span>Te debe</span>${meX.map(([k, v]) => `<b class="in num">${money(v, k)}</b>`).join("")}` : "",
+      debo ? `<span>Le debés</span>${deX.map(([k, v]) => `<b class="out num">${money(v, k)}</b>`).join("")}` : "",
       !me && !debo ? `<span>Todo saldado</span>` : "",
     ].join("");
     return `<li class="persona ${clase}" style="--i:${i}">
@@ -809,6 +841,7 @@ form.pago .f input { background: var(--sheet); }
         setTimeout(() => lista.classList.remove("entrada"), 1400);
       }
       lista.innerHTML = [...grupos.values()].map(grupoPersona).join("");
+      lista.querySelectorAll("form.pago").forEach(prepararConv);
     }
     recienPagada = null;
   }
@@ -818,9 +851,11 @@ form.pago .f input { background: var(--sheet); }
   function actualizarCuota() {
     const cur = fN.moneda.value, m = parseFloat($("#nMonto").value) || 0, q = Math.max(1, parseInt($("#nCuotas").value) || 1);
     $("#nCuotaValor").textContent = q === 1 ? `1 pago de ${money(m, cur)}` : `${q} cuotas de ${money(m / q, cur)}`;
-    $("#nMontoLab").textContent = cur === "USD" ? "Monto total en dólares" : "Monto total en pesos";
-    $("#mDolares").value = otroMetodo(cur);
-    $("#mOtroLab").textContent = cur === "USD" ? "Pesos" : "Dólares";
+    $("#nMontoLab").textContent = `Monto total en ${MONEDAS[cur].nombre}`;
+    fN.querySelectorAll("label[data-mon]").forEach(l => {
+      l.hidden = l.dataset.mon === cur;
+      if (l.hidden && l.querySelector("input").checked) $("#mEfectivo").checked = true;
+    });
   }
   fN.addEventListener("change", e => { if (e.target.name === "moneda") actualizarCuota(); });
   function abrirForm(c) {
@@ -832,8 +867,8 @@ form.pago .f input { background: var(--sheet); }
       $(c.tipo === "pagar" ? "#tPagar" : "#tCobrar").checked = true;
       $("#nNombre").value = c.nombre || ""; $("#nMonto").value = c.monto ?? "";
       $("#nCuotas").value = c.cuotas || 1; $("#nFecha").value = c.fecha || "";
-      $(mon(c) === "USD" ? "#monUSD" : "#monARS").checked = true;
-      $(c.metodo === "transferencia" ? "#mTransf" : (c.metodo === "dolares" || c.metodo === "pesos") ? "#mDolares" : "#mEfectivo").checked = true;
+      $("#mon" + mon(c)).checked = true;
+      $({ transferencia: "#mTransf", dolares: "#mDolares", pesos: "#mPesos", soles: "#mSoles" }[c.metodo] || "#mEfectivo").checked = true;
       $("#nNota").value = c.nota || "";
       $("#nConcepto").value = c.concepto || "";
     } else {
@@ -936,9 +971,7 @@ form.pago .f input { background: var(--sheet); }
     const f = e.target.closest("form.pago"); if (!f) return;
     if (e.target.name === "metodo") {
       $(".solo-transf", f).hidden = e.target.value !== "transferencia";
-      const conv = e.target.value === "dolares" || e.target.value === "pesos";
-      $(".solo-usd", f).hidden = !conv;
-      if (conv) calcularUsd(f);
+      prepararConv(f);
     }
     if (e.target.name === "foto") {
       const file = e.target.files[0], prev = $(".prev", f);
@@ -947,16 +980,36 @@ form.pago .f input { background: var(--sheet); }
     }
   });
 
+  // Arma el bloque de "pagó en otra moneda" según la moneda elegida en el formulario de pago.
+  function prepararConv(f) {
+    const c = cuentas.find(x => x.id === f.dataset.pago), D = mon(c), P = monDeMetodo(f.metodo.value);
+    const caja = $(".solo-usd", f);
+    caja.hidden = !P || P === D;
+    if (caja.hidden) return;
+    const [fu, de] = par(P, D);
+    if (f.dataset.pm !== P) {
+      f.dataset.pm = P;
+      f.usd.value = "";
+      f.cot.value = leerCot(P, D);
+    }
+    $(".l-ent", f).textContent = `${MONEDAS[P].Nombre} entregados`;
+    $(".l-cot", f).textContent = `Cotización (1 ${MONEDAS[fu].sim.trim()} = ${MONEDAS[de].sim.trim()})`;
+    f.usd.placeholder = P === "ARS" ? "Ej. 120000" : "Ej. 100";
+    f.cot.placeholder = fu === "USD" && de === "ARS" ? "Ej. 1200" : fu === "USD" ? "Ej. 3.75" : "Ej. 320";
+    calcularUsd(f);
+  }
   function calcularUsd(f) {
-    const c = cuentas.find(x => x.id === f.dataset.pago), enUsd = mon(c) === "USD";
+    const c = cuentas.find(x => x.id === f.dataset.pago), D = mon(c), P = monDeMetodo(f.metodo.value);
+    if (!P || P === D) return;
     const otro = parseFloat(f.usd.value), cot = parseFloat(f.cot.value), calc = $(".calc", f);
+    const masFuerte = MONEDAS[P].fuerza > MONEDAS[D].fuerza;
     if (otro > 0 && cot > 0) {
-      const v = Math.round((enUsd ? otro / cot : otro * cot) * 100) / 100;
+      const v = Math.round((masFuerte ? otro * cot : otro / cot) * 100) / 100;
       f.monto.value = v;
-      calc.innerHTML = enUsd
-        ? `${money(otro)} ÷ ${money(cot)} = <b>${money(v, "USD")}</b>`
-        : `US$${usdf.format(otro)} × ${money(cot)} = <b>${money(v)}</b>`;
-    } else calc.textContent = `Escribí los ${enUsd ? "pesos" : "dólares"} y la cotización para calcular el monto.`;
+      calc.innerHTML = masFuerte
+        ? `${money(otro, P)} × ${money(cot, D)} = <b>${money(v, D)}</b>`
+        : `${money(otro, P)} ÷ ${money(cot, P)} = <b>${money(v, D)}</b>`;
+    } else calc.textContent = `Escribí los ${MONEDAS[P].nombre} y la cotización para calcular el monto.`;
   }
   lista.addEventListener("input", e => {
     const f = e.target.closest("form.pago");
@@ -970,12 +1023,13 @@ form.pago .f input { background: var(--sheet); }
     const err = $(".error", f), btn = $("button[type=submit]", f);
     const metodoSel = f.metodo.value;
     let extra = {};
-    if (metodoSel === "dolares" || metodoSel === "pesos") {
+    const P = monDeMetodo(metodoSel);
+    if (P && P !== mon(c)) {
       const otro = parseFloat(f.usd.value), cot = parseFloat(f.cot.value);
-      if (!(otro > 0)) { err.textContent = `Escribí cuántos ${metodoSel === "pesos" ? "pesos" : "dólares"} se entregaron.`; err.hidden = false; f.usd.focus(); return; }
-      if (!(cot > 0)) { err.textContent = "Escribí la cotización del dólar."; err.hidden = false; f.cot.focus(); return; }
-      calcularUsd(f); guardarCot(cot);
-      extra = { [metodoSel === "pesos" ? "pesos" : "usd"]: Math.round(otro * 100) / 100, cotizacion: Math.round(cot * 100) / 100 };
+      if (!(otro > 0)) { err.textContent = `Escribí cuántos ${MONEDAS[P].nombre} se entregaron.`; err.hidden = false; f.usd.focus(); return; }
+      if (!(cot > 0)) { err.textContent = "Escribí la cotización."; err.hidden = false; f.cot.focus(); return; }
+      calcularUsd(f); guardarCot(P, mon(c), cot);
+      extra = { entregado: Math.round(otro * 100) / 100, monedaEntregada: P, cotizacion: cot };
     }
     const monto = parseFloat(f.monto.value);
     if (!(monto > 0)) { err.textContent = "Escribí cuánto se pagó."; err.hidden = false; f.monto.focus(); return; }
