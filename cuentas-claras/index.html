@@ -172,24 +172,51 @@ legend { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0; mar
 /* Lista */
 .aviso { background: color-mix(in oklab, var(--focus) 9%, var(--sheet)); color: var(--ink); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-size: 14px; }
 ul.cuentas { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.persona { background: var(--sheet); border-radius: calc(var(--r) + 4px); box-shadow: var(--shadow); padding: 6px; display: grid; gap: 6px; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+.persona { background: var(--sheet); border-radius: calc(var(--r) + 4px); box-shadow: var(--shadow); padding: 6px; display: grid; gap: 0; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
 .entrada .persona { animation: entrar .45s var(--ease-out) backwards; animation-delay: calc(min(var(--i, 0), 8) * 60ms + 120ms); }
 @keyframes entrar { from { opacity: 0; transform: translateY(14px) scale(.98); } }
 @media (hover: hover) and (pointer: fine) {
   .persona:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgb(22 32 27 / .06), 0 18px 36px -18px rgb(22 32 27 / .3); }
 }
-.anillo { --c: var(--muted); padding: 3px; border-radius: 17px; background: conic-gradient(var(--c) calc(var(--p, 0) * 1turn), color-mix(in oklab, var(--line) 90%, transparent) 0); display: grid; }
-.persona .p-cab .anillo .ini { background: color-mix(in oklab, var(--c) 16%, var(--sheet)); color: var(--c); width: 44px; height: 44px; border-radius: 14px; }
-.persona.par .p-cab .anillo .ini { color: var(--ink); }
-.persona.in .anillo { --c: var(--in); } .persona.out .anillo { --c: var(--out); }
+.anillo { padding: 3px; border-radius: 17px; background: conic-gradient(var(--c) calc(var(--p, 0) * 1turn), color-mix(in oklab, var(--line) 90%, transparent) 0); display: grid; }
+.persona.persona .p-cab .anillo .ini { background: color-mix(in oklab, var(--c) 16%, var(--sheet)); color: var(--c); width: 44px; height: 44px; border-radius: 14px; }
+.persona.persona.par .p-cab .anillo .ini { color: var(--ink); }
+.persona { --c: var(--muted); }
+.persona.in { --c: var(--in); } .persona.out { --c: var(--out); }
+.persona {
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in oklab, var(--c) 10%, transparent), transparent 55%),
+    var(--sheet);
+}
+/* Presión: responde al tocar, antes de soltar */
+.persona:has(> .p-cab:active) { transform: scale(.985); transition: transform .1s ease-out; }
+.persona.abierta { box-shadow: 0 2px 4px rgb(22 32 27 / .06), 0 22px 44px -22px rgb(22 32 27 / .35); }
+.persona.abierta .chev { background: color-mix(in oklab, var(--c) 18%, transparent); color: var(--c); }
+/* Las deudas aparecen escalonadas al abrir y se van juntas al cerrar */
+.p-in .p-res, .p-in .sub > li, .p-in .p-pie { opacity: 0; transform: translateY(-8px); transition: opacity .18s ease, transform .18s var(--ease-out); }
+.persona.abierta .p-in .p-res, .persona.abierta .p-in .sub > li, .persona.abierta .p-in .p-pie {
+  opacity: 1; transform: none; transition: opacity .28s ease, transform .32s var(--ease-out);
+  transition-delay: calc(min(var(--j, 0), 6) * 45ms + 60ms);
+}
+.persona.abierta .p-in .p-res { --j: 0; }
+.persona.abierta .p-in .p-pie { --j: 6; }
 .chispa { position: fixed; width: 8px; height: 12px; border-radius: 2px; pointer-events: none; z-index: 70; }
-.p-cab { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; padding: 12px clamp(10px, 2.5vw, 16px) 8px; }
+.p-cab { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--r); display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 10px clamp(10px, 2.5vw, 14px); }
+.chev { width: 36px; height: 36px; border-radius: 99px; display: grid; place-items: center; color: var(--muted); background: color-mix(in oklab, var(--line) 55%, transparent); transition: transform .25s var(--ease-out), background-color .2s ease, color .2s ease; }
+.chev svg.i { width: 20px; height: 20px; stroke-width: 2.2; }
+.persona.abierta .chev { transform: rotate(180deg); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .p-cab:hover .chev { background: color-mix(in oklab, var(--line) 90%, transparent); color: var(--ink); } }
+.p-cuerpo { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s var(--ease-out); }
+.persona.abierta .p-cuerpo { grid-template-rows: 1fr; }
+.p-cuerpo > div { overflow: hidden; min-height: 0; }
+.p-in { display: grid; gap: 8px; padding-top: 4px; }
+.p-res { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 6px 16px; padding: 0 clamp(10px, 2.5vw, 16px) 6px; }
 .p-cab .ini { width: 46px; height: 46px; border-radius: 14px; font-size: 1.2rem; }
 .persona.in .p-cab .ini { background: color-mix(in oklab, var(--in) 14%, transparent); color: var(--in); }
 .persona.out .p-cab .ini { background: color-mix(in oklab, var(--out) 14%, transparent); color: var(--out); }
 .persona.par .p-cab .ini { background: color-mix(in oklab, var(--line) 80%, transparent); color: var(--ink); }
 .p-cab h2 { font: 700 1.3rem/1.15 var(--display); letter-spacing: -.02em; margin: 0; overflow-wrap: anywhere; }
-.p-cab .meta { margin-top: 2px; }
+.p-res .meta { font-size: 13px; color: var(--muted); }
 .p-tot { display: grid; justify-items: end; gap: 1px; text-align: right; }
 .p-tot span { font-size: 12px; color: var(--muted); font-weight: 600; }
 .p-tot b { font: 700 1.25rem/1.1 var(--display); letter-spacing: -.02em; }
@@ -278,8 +305,7 @@ form.pago .f input { background: var(--sheet); }
 .cabeza-der { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 @media (max-width: 560px) {
-  .p-cab { grid-template-columns: auto 1fr; }
-  .p-tot { grid-column: 2; justify-items: start; text-align: left; }
+  .p-tot { justify-items: start; text-align: left; }
   .cab { grid-template-columns: auto 1fr; }
   .cifra { grid-column: 2; justify-items: start; text-align: left; grid-row: 2; }
   .cuotas { grid-row: 3; }
@@ -287,7 +313,8 @@ form.pago .f input { background: var(--sheet); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
-  .persona:hover { transform: none; }
+  .persona:hover, .persona:has(> .p-cab:active) { transform: none; }
+  .p-in .p-res, .p-in .sub > li, .p-in .p-pie { transform: none !important; }
 }
 </style>
 <script src="supabase.min.js"></script>
@@ -304,6 +331,7 @@ form.pago .f input { background: var(--sheet); }
   <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
 </svg>
@@ -484,6 +512,7 @@ form.pago .f input { background: var(--sheet); }
   let confirmando = null;
   let prevTot = { in: 0, out: 0 };
   let yaEntro = false;
+  const personasAbiertas = new Set();
 
   /* ---------- Cálculos ---------- */
   const pagado = c => (c.pagos || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
@@ -800,15 +829,21 @@ form.pago .f input { background: var(--sheet); }
       debo ? `<span>Le debés</span>${deX.map(([k, v]) => `<b class="out num">${money(v, k)}</b>`).join("")}` : "",
       !me && !debo ? `<span>Todo saldado</span>` : "",
     ].join("");
-    return `<li class="persona ${clase}" style="--i:${i}">
-      <div class="p-cab">
+    const k = claveP(g.nombre), abierto = personasAbiertas.has(k);
+    return `<li class="persona ${clase}${abierto ? " abierta" : ""}" style="--i:${i}" data-clave="${esc(k)}">
+      <button class="p-cab" type="button" aria-expanded="${abierto}" data-persona="${esc(k)}">
         <span class="anillo" style="--p:${pct}" title="${Math.round(pct * 100)}% pagado"><span class="ini">${esc((g.nombre || "?").trim().charAt(0).toUpperCase())}</span></span>
-        <div class="quien"><h2>${esc(g.nombre)}</h2>
-          <span class="meta">${n} ${n === 1 ? "deuda" : "deudas"}${pend !== n ? ` · ${pend} ${pend === 1 ? "pendiente" : "pendientes"}` : ""} · ${Math.round(pct * 100)}% pagado</span></div>
-        <div class="p-tot">${tot}</div>
-      </div>
-      <ul class="sub">${g.deudas.map(filaCuenta).join("")}</ul>
-      <div class="p-pie"><button class="link" type="button" data-agregar="${esc(g.nombre)}">${icon("plus")}Agregar otra deuda con ${esc(g.nombre)}</button></div>
+        <h2>${esc(g.nombre)}</h2>
+        <span class="chev" aria-hidden="true">${icon("chev")}</span>
+      </button>
+      <div class="p-cuerpo"><div><div class="p-in">
+        <div class="p-res">
+          <span class="meta">${n} ${n === 1 ? "deuda" : "deudas"}${pend !== n ? ` · ${pend} ${pend === 1 ? "pendiente" : "pendientes"}` : ""} · ${Math.round(pct * 100)}% pagado</span>
+          <div class="p-tot">${tot}</div>
+        </div>
+        <ul class="sub">${g.deudas.map((c, j) => filaCuenta(c).replace('<li class="cuenta', `<li style="--j:${j + 1}" class="cuenta`)).join("")}</ul>
+        <div class="p-pie"><button class="link" type="button" data-agregar="${esc(g.nombre)}">${icon("plus")}Agregar otra deuda con ${esc(g.nombre)}</button></div>
+      </div></div></div>
     </li>`;
   }
 
@@ -908,7 +943,7 @@ form.pago .f input { background: var(--sheet); }
     const b = $("#btnGuardar"); b.disabled = true;
     try {
       await store.guardar(c);
-      abierta = c.id; cerrarForm();
+      abierta = c.id; personasAbiertas.add(claveP(c.nombre)); cerrarForm();
       if (filtro !== "todo" && filtro !== c.tipo) setFiltro("todo");
       toast(previa ? "Cambios guardados" : "Cuenta anotada");
     } catch (x) { err.textContent = "No se pudo guardar. Revisá tu conexión y probá de nuevo."; err.hidden = false; }
@@ -935,6 +970,18 @@ form.pago .f input { background: var(--sheet); }
   lista.addEventListener("click", async e => {
     const t = e.target.closest("button");
     if (!t) return;
+    if (t.dataset.persona !== undefined) {
+      const li = t.closest(".persona"), k = t.dataset.persona, open = !li.classList.contains("abierta");
+      li.classList.toggle("abierta", open); t.setAttribute("aria-expanded", open);
+      if (open) {
+        personasAbiertas.add(k);
+        setTimeout(() => {
+          const r = li.getBoundingClientRect();
+          if (r.bottom > innerHeight) li.scrollIntoView({ block: r.height > innerHeight ? "start" : "end", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        }, 340);
+      } else personasAbiertas.delete(k);
+      return;
+    }
     if (t.dataset.toggle) {
       const li = t.closest(".cuenta"), open = !li.classList.contains("open");
       lista.querySelectorAll(".cuenta.open").forEach(x => { if (x !== li) { x.classList.remove("open"); $(".cab", x).setAttribute("aria-expanded", "false"); } });
